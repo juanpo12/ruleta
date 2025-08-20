@@ -75,13 +75,20 @@ useEffect(() => {
 // Handle spin trigger
 useEffect(() => {
   if (targetIndex == null || items.length === 0) return
-  // compute final rotation to land targetIndex at pointer top (-PI/2)
+  
+  // Guardar los items al momento del spin para consistencia
+  itemsAtStartRef.current = items.slice()
+  
+  // Calcular rotación final para que targetIndex quede bajo la flecha
   const anglePer = TAU / items.length
-  const mid = targetIndex * anglePer + anglePer / 2
-  // Con BASE_ROT = -PI/2, para alinear el centro del segmento con la flecha superior,
-  // necesitamos que rotationRef.current sea -mid (más giros completos)
-  const baseTarget = -mid
+  const targetAngle = targetIndex * anglePer + anglePer / 2
+  
+  // La flecha está en la parte superior (BASE_ROT = -PI/2)
+  // Para que el segmento targetIndex quede bajo la flecha, necesitamos:
+  const baseTarget = -targetAngle
   const current = rotationRef.current
+  
+  // Agregar vueltas extra para el efecto visual
   const extraSpins = 3 + Math.floor(Math.random() * 2) // 3-4 vueltas extra
   const k = Math.ceil((current - baseTarget) / TAU) + extraSpins
   const finalRotation = baseTarget + TAU * k
@@ -90,7 +97,6 @@ useEffect(() => {
   finalRotationRef.current = finalRotation
   startTimeRef.current = null
   durationRef.current = 2600 + Math.random() * 1200
-  itemsAtStartRef.current = items.slice()
 
   if (rafRef.current) cancelAnimationFrame(rafRef.current)
   rafRef.current = requestAnimationFrame(tick)
@@ -113,20 +119,30 @@ function tick(ts: number) {
     (finalRotationRef.current - startRotationRef.current) * e
   rotationRef.current = rot
   draw()
+  
   if (t < 1) {
     rafRef.current = requestAnimationFrame(tick)
   } else {
+    // Animación completada
     rotationRef.current = finalRotationRef.current
     draw()
-    const n = itemsAtStartRef.current.length || items.length
-    if (n > 0) {
-      const anglePer = TAU / n
-      const rot = rotationRef.current
-      const pointerWheel = normalizeAngle(-rot)
-      let idx = Math.floor(normalizeAngle(pointerWheel + anglePer / 2) / anglePer)
-      idx = ((idx % n) + n) % n
-      const winnerName = itemsAtStartRef.current[idx] ?? items[idx] ?? ""
-      onDone?.(idx, winnerName)
+    
+    // El ganador debe ser exactamente el targetIndex que se determinó antes
+    if (targetIndex !== null && itemsAtStartRef.current.length > 0) {
+      const winnerName = itemsAtStartRef.current[targetIndex] ?? ""
+      onDone?.(targetIndex, winnerName)
+    } else {
+      // Fallback al cálculo original si no hay targetIndex
+      const n = itemsAtStartRef.current.length || items.length
+      if (n > 0) {
+        const anglePer = TAU / n
+        const rot = rotationRef.current
+        const pointerWheel = normalizeAngle(-rot)
+        let idx = Math.floor(normalizeAngle(pointerWheel + anglePer / 2) / anglePer)
+        idx = ((idx % n) + n) % n
+        const winnerName = itemsAtStartRef.current[idx] ?? items[idx] ?? ""
+        onDone?.(idx, winnerName)
+      }
     }
   }
 }
@@ -219,20 +235,7 @@ function draw() {
   ctx.restore()
 }
 
-function drawFittedText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-) {
-  let display = text
-  while (ctx.measureText(display).width > maxWidth && display.length > 3) {
-    display = display.slice(0, -2)
-  }
-  if (display.length < text.length) {
-    display = display.slice(0, -1) + "…"
-  }
-  ctx.fillText(display, 0, 0)
-}
+
 
 return (
   <div ref={containerRef} className="relative mx-auto aspect-square w-full">

@@ -98,29 +98,39 @@ export default function RouletteApp() {
     if (spinning || rem.length === 0) return
     setSpinning(true)
 
-    let idx: number | null = null
+    // 1. Primero determinamos el ganador
+    let winnerIdx: number
     if (results.length === 0) {
-      const sIdx = rem.findIndex((n) => isSpecialName(n))
-      if (sIdx !== -1) idx = sIdx
-    }
-    if (idx == null) {
-      idx = Math.floor(Math.random() * rem.length)
+      // Si es el primer giro, buscar "feraco"
+      const specialIdx = rem.findIndex((n) => isSpecialName(n))
+      winnerIdx = specialIdx !== -1 ? specialIdx : Math.floor(Math.random() * rem.length)
+    } else {
+      // Giros posteriores son completamente aleatorios
+      winnerIdx = Math.floor(Math.random() * rem.length)
     }
 
-    setTargetIndex(idx)
+    // 2. Configuramos la ruleta para que gire hacia ese ganador
+    setTargetIndex(winnerIdx)
     setSpinKey((k) => k + 1)
   }
 
   const onSpinDone = (winnerIndex: number, winnerName?: string) => {
-    const candidate = winnerName ?? remaining[winnerIndex]
-    if (!candidate) {
+    // El ganador debe ser exactamente el que se determinó antes de la animación
+    const expectedWinner = targetIndex !== null ? remaining[targetIndex] : null
+    const actualWinner = winnerName ?? remaining[winnerIndex]
+    
+    // Usar el ganador esperado para garantizar sincronización
+    const finalWinner = expectedWinner || actualWinner
+    
+    if (!finalWinner) {
       setSpinning(false)
       spinResolveRef.current?.()
       spinResolveRef.current = null
       return
     }
-    setResults((prev) => [...prev, candidate])
-    toast({ title: "Ganador/a", description: candidate })
+    
+    setResults((prev) => [...prev, finalWinner])
+    toast({ title: "Ganador/a", description: finalWinner })
     setSpinning(false)
     spinResolveRef.current?.()
     spinResolveRef.current = null
@@ -134,15 +144,21 @@ export default function RouletteApp() {
       const rem = names.filter((n) => !results.includes(n))
       if (rem.length === 0) break
 
-      let idx = Math.floor(Math.random() * rem.length)
+      // 1. Determinar el ganador antes de la animación
+      let winnerIdx: number
       if (results.length === 0) {
-        const sIdx = rem.findIndex((n) => isSpecialName(n))
-        if (sIdx !== -1) idx = sIdx
+        // Primer giro: buscar "feraco"
+        const specialIdx = rem.findIndex((n) => isSpecialName(n))
+        winnerIdx = specialIdx !== -1 ? specialIdx : Math.floor(Math.random() * rem.length)
+      } else {
+        // Giros posteriores: completamente aleatorio
+        winnerIdx = Math.floor(Math.random() * rem.length)
       }
 
+      // 2. Ejecutar la animación hacia ese ganador
       await new Promise<void>((resolve) => {
         spinResolveRef.current = resolve
-        setTargetIndex(idx)
+        setTargetIndex(winnerIdx)
         setSpinning(true)
         setSpinKey((k) => k + 1)
       })
