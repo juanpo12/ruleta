@@ -4,9 +4,8 @@ import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: 'Ruletita - Ordenar nombres al azar',
+  description: 'Aplicación para ordenar nombres de forma aleatoria usando una ruleta interactiva',
 }
 
 export default function RootLayout({
